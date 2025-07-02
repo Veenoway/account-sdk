@@ -1,7 +1,5 @@
 # Base Account SDK
 
-[![npm](https://img.shields.io/npm/v/@base/account-sdk.svg)](https://www.npmjs.com/package/@base/account-sdk)
-
 ## Base Account SDK allows dapps to connect to Base Account
 
 1. [Base Account](https://account.base.org/)
