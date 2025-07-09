@@ -7,7 +7,8 @@ import { RPCRequestMessage, RPCResponseMessage } from ':core/message/RPCMessage.
 import { RPCResponse } from ':core/message/RPCResponse.js';
 import { AppMetadata, ProviderEventCallback, RequestArguments } from ':core/provider/interface.js';
 import { FetchPermissionsResponse } from ':core/rpc/coinbase_fetchSpendPermissions.js';
-import { WalletConnectRequest, WalletConnectResponse } from ':core/rpc/wallet_connect.js';
+import { WalletConnectResponse } from ':core/rpc/wallet_connect.js';
+import { GetSubAccountsResponse } from ':core/rpc/wallet_getSubAccount.js';
 import {
   logHandshakeCompleted,
   logHandshakeError,
@@ -46,6 +47,7 @@ import { getCryptoKeyAccount } from '../../kms/crypto-key/index.js';
 import { SCWKeyManager } from './SCWKeyManager.js';
 import {
   addSenderToRequest,
+  appendWithoutDuplicates,
   assertFetchPermissionsRequest,
   assertGetCapabilitiesParams,
   assertParamsChainId,
@@ -162,27 +164,25 @@ export class Signer {
     if (this.accounts.length === 0) {
       switch (request.method) {
         case 'eth_requestAccounts': {
-          if (store.subAccountsConfig.get()?.enableAutoSubAccounts) {
-            // Wait for the popup to be loaded before making async calls
-            await this.communicator.waitForPopupLoaded?.();
-            await initSubAccountConfig();
-            // This will populate the store with the sub account
-            await this.request({
-              method: 'wallet_connect',
-              params: [
-                {
-                  version: '1',
-                  capabilities: {
-                    ...(store.subAccountsConfig.get()?.capabilities ?? {}),
-                  },
+          // Wait for the popup to be loaded before making async calls
+          await this.communicator.waitForPopupLoaded?.();
+          await initSubAccountConfig();
+          // This will populate the store with the sub account
+          await this.request({
+            method: 'wallet_connect',
+            params: [
+              {
+                version: '1',
+                capabilities: {
+                  ...(store.subAccountsConfig.get()?.capabilities ?? {}),
                 },
-              ],
-            });
-          }
+              },
+            ],
+          });
           this.callback?.('connect', { chainId: numberToHex(this.chain.id) });
           return this.accounts;
         }
-        case 'wallet_switchEthereumChain': {
+        case 'wallet_switchEthereumChain': { 
           assertParamsChainId(request.params);
           this.chain.id = Number(request.params[0].chainId);
           return;
@@ -227,18 +227,20 @@ export class Signer {
     }
 
     switch (request.method) {
-      case 'eth_requestAccounts': {
-        // if auto sub accounts are enabled and we have a sub account, we need to return it as a top level account
+      case 'eth_requestAccounts':
+      case 'eth_accounts': {
         const subAccount = store.subAccounts.get();
+        const subAccountsConfig = store.subAccountsConfig.get();
         if (subAccount?.address) {
-          this.accounts = prependWithoutDuplicates(this.accounts, subAccount.address);
+          // if auto sub accounts are enabled and we have a sub account, we need to return it as a top level account
+          // otherwise, we just append it to the accounts array
+          this.accounts = subAccountsConfig?.enableAutoSubAccounts
+            ? prependWithoutDuplicates(this.accounts, subAccount.address)
+            : appendWithoutDuplicates(this.accounts, subAccount.address);
         }
 
-        this.callback?.('connect', { chainId: numberToHex(this.chain.id) });
         return this.accounts;
       }
-      case 'eth_accounts':
-        return this.accounts;
       case 'eth_coinbase':
         return this.accounts[0];
       case 'net_version':
@@ -283,6 +285,31 @@ export class Signer {
         return this.sendRequestToPopup(modifiedRequest);
       }
       // Sub Account Support
+      case 'wallet_getSubAccounts': {
+        const subAccount = store.subAccounts.get();
+        if (subAccount?.address) {
+          return {
+            subAccounts: [subAccount],
+          };
+        }
+
+        if (!this.chain.rpcUrl) {
+          throw standardErrors.rpc.internal('No RPC URL set for chain');
+        }
+        const response = await fetchRPCRequest(request, this.chain.rpcUrl) as GetSubAccountsResponse;
+        assertArrayPresence(response.subAccounts, 'subAccounts');
+        if (response.subAccounts.length > 0) {
+          // cache the sub account
+          assertSubAccount(response.subAccounts[0]);
+          const subAccount = response.subAccounts[0];
+          store.subAccounts.set({
+            address: subAccount.address,
+            factory: subAccount.factory,
+            factoryData: subAccount.factoryData,
+          });
+        }
+        return response;
+      }
       case 'wallet_addSubAccount':
         return this.addSubAccount(request);
       case 'coinbase_fetchPermissions': {
@@ -346,7 +373,6 @@ export class Signer {
 
         const account = response.accounts.at(0);
         const capabilities = account?.capabilities;
-        const requestCapabilities = (request as WalletConnectRequest).params?.[0]?.capabilities;
 
         if (capabilities?.subAccounts) {
           const capabilityResponse = capabilities?.subAccounts;
@@ -363,12 +389,11 @@ export class Signer {
         const subAccount = store.subAccounts.get();
         const subAccountsConfig = store.subAccountsConfig.get();
 
-        // Sub account should be returned as a top level account if auto sub accounts are enabled
-        const shouldUseSubAccount =
-          subAccountsConfig?.enableAutoSubAccounts || !!requestCapabilities?.addSubAccount;
-
-        if (subAccount?.address && shouldUseSubAccount) {
-          this.accounts = prependWithoutDuplicates(this.accounts, subAccount.address);
+        if (subAccount?.address) {
+          // Sub account should be returned as a top level account if auto sub accounts are enabled
+          this.accounts = subAccountsConfig?.enableAutoSubAccounts
+            ? prependWithoutDuplicates(this.accounts, subAccount.address)
+            : appendWithoutDuplicates(this.accounts, subAccount.address);
         }
 
         const spendPermissions = response?.accounts?.[0].capabilities?.spendPermissions;
@@ -378,6 +403,17 @@ export class Signer {
         }
 
         this.callback?.('accountsChanged', accounts_);
+        break;
+      }
+      case 'wallet_addSubAccount': {
+        assertSubAccount(result.value);
+        const subAccount = result.value;
+        store.subAccounts.set(subAccount);
+        const subAccountsConfig = store.subAccountsConfig.get();
+        this.accounts = subAccountsConfig?.enableAutoSubAccounts
+          ? prependWithoutDuplicates(this.accounts, subAccount.address)
+          : appendWithoutDuplicates(this.accounts, subAccount.address);
+        this.callback?.('accountsChanged', this.accounts);
         break;
       }
       default:
@@ -565,9 +601,11 @@ export class Signer {
   }> {
     const state = store.getState();
     const subAccount = state.subAccount;
+    const subAccountsConfig = store.subAccountsConfig.get();
     if (subAccount?.address) {
-      // Move the sub account to the top level accounts to make it active
-      this.accounts = prependWithoutDuplicates(this.accounts, subAccount.address);
+      this.accounts = subAccountsConfig?.enableAutoSubAccounts
+        ? prependWithoutDuplicates(this.accounts, subAccount.address)
+        : appendWithoutDuplicates(this.accounts, subAccount.address);
       this.callback?.('accountsChanged', this.accounts);
       return subAccount;
     }
@@ -608,15 +646,6 @@ export class Signer {
 
     const response = await this.sendRequestToPopup(request);
     assertSubAccount(response);
-    // Only store the sub account information after the popup has been closed and the
-    // user has confirmed the creation
-    store.subAccounts.set({
-      address: response.address,
-      factory: response.factory,
-      factoryData: response.factoryData,
-    });
-    this.accounts = prependWithoutDuplicates(this.accounts, response.address);
-    this.callback?.('accountsChanged', this.accounts);
     return response;
   }
 
