@@ -63,29 +63,112 @@ export const Output = ({ result, error, consoleOutput, isLoading }: OutputProps)
                 </>
               )}
             </div>
+
             <div className={styles.resultBody}>
-              {result.success ? (
-                <>
-                  <div className={styles.resultRow}>
-                    <span className={styles.resultLabel}>Transaction ID</span>
-                    <code className={styles.resultValue}>{result.id}</code>
-                  </div>
-                  <div className={styles.resultRow}>
-                    <span className={styles.resultLabel}>Amount</span>
-                    <span className={styles.resultValue}>{result.amount} USDC</span>
-                  </div>
-                  <div className={styles.resultRow}>
-                    <span className={styles.resultLabel}>Recipient</span>
-                    <code className={styles.resultValue}>{result.recipient}</code>
-                  </div>
-                </>
-              ) : (
+              <div className={styles.resultRow}>
+                <span className={styles.resultLabel}>Amount</span>
+                <span className={styles.resultValue}>{result.amount} USDC</span>
+              </div>
+              <div className={styles.resultRow}>
+                <span className={styles.resultLabel}>Recipient</span>
+                <code className={styles.resultValue}>{result.recipient}</code>
+              </div>
+              {result.id && (
+                <div className={styles.resultRow}>
+                  <span className={styles.resultLabel}>Transaction ID</span>
+                  <code className={styles.resultValue}>{result.id}</code>
+                </div>
+              )}
+              {result.error && (
                 <div className={styles.resultRow}>
                   <span className={styles.resultLabel}>Error</span>
-                  <span className={styles.resultValue}>{result.error}</span>
+                  <span className={styles.errorMessage}>{result.error}</span>
                 </div>
               )}
             </div>
+
+            {result.infoResponses && (
+              <div className={styles.userDataSection}>
+                <div className={styles.userDataHeader}>
+                  <svg
+                    className={styles.userDataIcon}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <span>User Info</span>
+                </div>
+                <div className={styles.userDataBody}>
+                  {result.infoResponses.name && (
+                    <div className={styles.userDataRow}>
+                      <span className={styles.userDataLabel}>Name</span>
+                      <span className={styles.userDataValue}>
+                        {(() => {
+                          const name = result.infoResponses.name as unknown as {
+                            firstName: string;
+                            familyName: string;
+                          };
+                          return `${name.firstName} ${name.familyName}`;
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                  {result.infoResponses.email && (
+                    <div className={styles.userDataRow}>
+                      <span className={styles.userDataLabel}>Email</span>
+                      <span className={styles.userDataValue}>{result.infoResponses.email}</span>
+                    </div>
+                  )}
+                  {result.infoResponses.phoneNumber && (
+                    <div className={styles.userDataRow}>
+                      <span className={styles.userDataLabel}>Phone</span>
+                      <span className={styles.userDataValue}>
+                        {result.infoResponses.phoneNumber.number} ({result.infoResponses.phoneNumber.country})
+                      </span>
+                    </div>
+                  )}
+                  {result.infoResponses.physicalAddress && (
+                    <div className={styles.userDataRow}>
+                      <span className={styles.userDataLabel}>Address</span>
+                      <span className={styles.userDataValue}>
+                        {(() => {
+                          const addr = result.infoResponses.physicalAddress as unknown as {
+                            address1: string;
+                            address2?: string;
+                            city: string;
+                            state: string;
+                            postalCode: string;
+                            countryCode: string;
+                            name?: {
+                              firstName: string;
+                              familyName: string;
+                            };
+                          };
+                          const parts = [
+                            addr.name ? `${addr.name.firstName} ${addr.name.familyName}` : null,
+                            addr.address1,
+                            addr.address2,
+                            `${addr.city}, ${addr.state} ${addr.postalCode}`,
+                            addr.countryCode
+                          ].filter(Boolean);
+                          return parts.join(', ');
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                  {result.infoResponses.onchainAddress && (
+                    <div className={styles.userDataRow}>
+                      <span className={styles.userDataLabel}>On-chain Address</span>
+                      <span className={styles.userDataValue}>{result.infoResponses.onchainAddress}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

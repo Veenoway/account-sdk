@@ -10,8 +10,9 @@ import { isENSName, validateRecipient, validateStringAmount } from './utils/vali
  *
  * @param options - Payment options
  * @param options.amount - Amount of USDC to send as a string (e.g., "10.50")
- * @param options.recipient - Ethereum address or ENS name of the recipient
+ * @param options.to - Ethereum address or ENS name to send payment to
  * @param options.testnet - Whether to use Base Sepolia testnet (default: false)
+ * @param options.infoRequests - Optional information requests for data callbacks
  * @returns Promise<PaymentResult> - Result of the payment transaction
  *
  * @example
@@ -19,15 +20,19 @@ import { isENSName, validateRecipient, validateStringAmount } from './utils/vali
  * // Pay to an Ethereum address
  * const payment = await pay({
  *   amount: "10.50",
- *   recipient: "0xFe21034794A5a574B94fE4fDfD16e005F1C96e51",
+ *   to: "0xFe21034794A5a574B94fE4fDfD16e005F1C96e51",
  *   testnet: true
  * });
  *
- * // Pay to an ENS name
+ * // Pay to an ENS name with info requests
  * const payment = await pay({
  *   amount: "5.00",
- *   recipient: "vitalik.eth",
- *   testnet: false
+ *   to: "vitalik.eth",
+ *   testnet: false,
+ *   infoRequests: [
+ *     { request: 'email' },
+ *     { request: 'physicalAddress', optional: true },
+ *   ]
  * });
  *
  * if (payment.success) {
@@ -38,32 +43,33 @@ import { isENSName, validateRecipient, validateStringAmount } from './utils/vali
  * ```
  */
 export async function pay(options: PaymentOptions): Promise<PaymentResult> {
-  const { amount, recipient, testnet = false } = options;
+  const { amount, to, testnet = false, infoRequests } = options;
 
   try {
     validateStringAmount(amount, 2);
-    validateRecipient(recipient);
+    validateRecipient(to);
 
     // Resolve ENS name if necessary
     let resolvedRecipient: Address;
-    if (isENSName(recipient)) {
-      resolvedRecipient = await resolveENS(recipient);
+    if (isENSName(to)) {
+      resolvedRecipient = await resolveENS(to);
     } else {
-      resolvedRecipient = recipient as Address;
+      resolvedRecipient = to as Address;
     }
 
     // Step 2: Translate payment to sendCalls format
-    const requestParams = translatePaymentToSendCalls(resolvedRecipient, amount, testnet);
+    const requestParams = translatePaymentToSendCalls(resolvedRecipient, amount, testnet, infoRequests);
 
     // Step 3: Execute payment with SDK
-    const transactionHash = await executePaymentWithSDK(requestParams, testnet);
+    const executionResult = await executePaymentWithSDK(requestParams, testnet);
 
     // Return success result
     return {
       success: true,
-      id: transactionHash,
+      id: executionResult.transactionHash,
       amount: amount,
-      recipient: resolvedRecipient,
+      to: resolvedRecipient,
+      infoResponses: executionResult.infoResponses,
     };
   } catch (error) {
     // Extract error message
@@ -75,7 +81,7 @@ export async function pay(options: PaymentOptions): Promise<PaymentResult> {
       errorMessage = error;
     } else if (error && typeof error === 'object') {
       // Check for various error message properties using optional chaining
-      const err = error as any;
+      const err = error as { message?: unknown; error?: { message?: unknown }; reason?: unknown };
       if (typeof err?.message === 'string') {
         errorMessage = err.message;
       } else if (typeof err?.error?.message === 'string') {
@@ -90,7 +96,7 @@ export async function pay(options: PaymentOptions): Promise<PaymentResult> {
       success: false,
       error: errorMessage,
       amount: amount,
-      recipient: recipient as Address,
+      to: to as Address,
     };
   }
 }

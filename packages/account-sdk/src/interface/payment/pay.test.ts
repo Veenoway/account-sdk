@@ -33,13 +33,13 @@ describe('pay', () => {
       ],
       capabilities: {},
     });
-    vi.mocked(sdkManager.executePaymentWithSDK).mockResolvedValue(
-      '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-    );
+    vi.mocked(sdkManager.executePaymentWithSDK).mockResolvedValue({
+      transactionHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+    });
 
     const payment = await pay({
       amount: '10.50',
-      recipient: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+      to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
       testnet: false,
     });
 
@@ -47,7 +47,8 @@ describe('pay', () => {
       success: true,
       id: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
       amount: '10.50',
-      recipient: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+      to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+      infoResponses: undefined,
     });
 
     expect(validation.validateStringAmount).toHaveBeenCalledWith('10.50', 2);
@@ -57,7 +58,8 @@ describe('pay', () => {
     expect(translatePayment.translatePaymentToSendCalls).toHaveBeenCalledWith(
       '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
       '10.50',
-      false
+      false,
+      undefined
     );
   });
 
@@ -82,13 +84,13 @@ describe('pay', () => {
       ],
       capabilities: {},
     });
-    vi.mocked(sdkManager.executePaymentWithSDK).mockResolvedValue(
-      '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-    );
+    vi.mocked(sdkManager.executePaymentWithSDK).mockResolvedValue({
+      transactionHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+    });
 
     const payment = await pay({
       amount: '5.00',
-      recipient: ensName,
+      to: ensName,
       testnet: false,
     });
 
@@ -96,7 +98,8 @@ describe('pay', () => {
       success: true,
       id: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
       amount: '5.00',
-      recipient: resolvedAddress,
+      to: resolvedAddress,
+      infoResponses: undefined,
     });
 
     expect(validation.validateStringAmount).toHaveBeenCalledWith('5.00', 2);
@@ -105,7 +108,8 @@ describe('pay', () => {
     expect(translatePayment.translatePaymentToSendCalls).toHaveBeenCalledWith(
       resolvedAddress,
       '5.00',
-      false
+      false,
+      undefined
     );
   });
 
@@ -122,7 +126,7 @@ describe('pay', () => {
 
     const payment = await pay({
       amount: '10.50',
-      recipient: ensName,
+      to: ensName,
       testnet: false,
     });
 
@@ -130,7 +134,7 @@ describe('pay', () => {
       success: false,
       error: 'Failed to resolve ENS name "nonexistent.eth": ENS name "nonexistent.eth" not found',
       amount: '10.50',
-      recipient: ensName,
+      to: ensName,
     });
 
     expect(validation.validateStringAmount).toHaveBeenCalledWith('10.50', 2);
@@ -145,14 +149,14 @@ describe('pay', () => {
 
     const payment = await pay({
       amount: '0',
-      recipient: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+      to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
     });
 
     expect(payment).toEqual({
       success: false,
       error: 'Invalid amount: must be greater than 0',
       amount: '0',
-      recipient: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+      to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
     });
   });
 
@@ -172,14 +176,14 @@ describe('pay', () => {
 
     const payment = await pay({
       amount: '10.50',
-      recipient: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+      to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
     });
 
     expect(payment).toEqual({
       success: false,
       error: 'User rejected the request',
       amount: '10.50',
-      recipient: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+      to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
     });
   });
 
@@ -203,13 +207,13 @@ describe('pay', () => {
         },
       },
     });
-    vi.mocked(sdkManager.executePaymentWithSDK).mockResolvedValue(
-      '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
-    );
+    vi.mocked(sdkManager.executePaymentWithSDK).mockResolvedValue({
+      transactionHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+    });
 
     const payment = await pay({
       amount: '5.00',
-      recipient: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+      to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
       testnet: true,
     });
 
@@ -217,7 +221,8 @@ describe('pay', () => {
     expect(translatePayment.translatePaymentToSendCalls).toHaveBeenCalledWith(
       '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
       '5.00',
-      true
+      true,
+      undefined
     );
     expect(sdkManager.executePaymentWithSDK).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -227,6 +232,78 @@ describe('pay', () => {
         }),
       }),
       true
+    );
+  });
+
+  it('should successfully process a payment with infoRequests', async () => {
+    const infoRequests = [
+      { request: 'email' },
+      { request: 'physicalAddress', optional: true },
+    ];
+
+    const infoResponses = {
+      email: 'test@example.com',
+      physicalAddress: {
+        address1: '123 Main St',
+        city: 'New York',
+        state: 'NY',
+        postalCode: '10001',
+        countryCode: 'US',
+      },
+    };
+
+    // Setup mocks
+    vi.mocked(validation.validateStringAmount).mockReturnValue(undefined);
+    vi.mocked(validation.validateRecipient).mockReturnValue(undefined);
+    vi.mocked(validation.isENSName).mockReturnValue(false);
+    vi.mocked(translatePayment.translatePaymentToSendCalls).mockReturnValue({
+      version: '1.0',
+      chainId: 8453,
+      calls: [
+        {
+          to: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+          data: '0xabcdef',
+          value: '0x0',
+        },
+      ],
+      capabilities: {
+        dataCallback: {
+          requests: [
+            { type: 'email', optional: false },
+            { type: 'physicalAddress', optional: true },
+          ],
+        },
+      },
+    });
+    vi.mocked(sdkManager.executePaymentWithSDK).mockResolvedValue({
+      transactionHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      infoResponses,
+    });
+
+    const payment = await pay({
+      amount: '10.50',
+      to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+      testnet: false,
+      infoRequests,
+    });
+
+    expect(payment).toEqual({
+      success: true,
+      id: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      amount: '10.50',
+      to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+      infoResponses: infoResponses,
+    });
+
+    expect(validation.validateStringAmount).toHaveBeenCalledWith('10.50', 2);
+    expect(validation.validateRecipient).toHaveBeenCalledWith(
+      '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51'
+    );
+    expect(translatePayment.translatePaymentToSendCalls).toHaveBeenCalledWith(
+      '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+      '10.50',
+      false,
+      infoRequests
     );
   });
 });
