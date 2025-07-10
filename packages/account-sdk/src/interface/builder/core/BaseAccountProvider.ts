@@ -9,7 +9,6 @@ import {
   ProviderInterface,
   RequestArguments,
 } from ':core/provider/interface.js';
-import { ScopedLocalStorage } from ':core/storage/ScopedLocalStorage.js';
 import {
   logRequestError,
   logRequestResponded,
@@ -139,7 +138,6 @@ export class BaseAccountProvider extends ProviderEventEmitter implements Provide
 
   async disconnect() {
     await this.signer.cleanup();
-    ScopedLocalStorage.clearAll();
     correlationIds.clear();
     this.emit('disconnect', standardErrors.provider.disconnected('User initiated disconnection'));
   }

@@ -10,11 +10,15 @@ import {
   FetchPermissionsRequest,
 } from ':core/rpc/coinbase_fetchSpendPermissions.js';
 import { WalletConnectRequest, WalletConnectResponse } from ':core/rpc/wallet_connect.js';
-import { logSnackbarActionClicked, logSnackbarShown } from ':core/telemetry/events/snackbar.js';
+import {
+  logDialogActionClicked,
+  logDialogDismissed,
+  logDialogShown,
+} from ':core/telemetry/events/dialog.js';
 import { Address } from ':core/type/index.js';
 import { config, store } from ':store/store.js';
+import { initDialog } from ':ui/Dialog/index.js';
 import { get } from ':util/get.js';
-import { initSnackbar } from ':util/web.js';
 import { waitForCallsStatus } from 'viem/experimental';
 import { getCryptoKeyAccount } from '../../kms/crypto-key/index.js';
 import { spendPermissionManagerAddress } from './utils/constants.js';
@@ -414,63 +418,41 @@ export function createWalletSendCallsRequest({
 }
 
 export async function presentSubAccountFundingDialog() {
-  const snackbar = initSnackbar();
+  const dialog = initDialog();
   const userChoice = await new Promise<'update_permission' | 'continue_popup' | 'cancel'>(
     (resolve) => {
-      logSnackbarShown({ snackbarContext: 'sub_account_insufficient_balance' });
-      snackbar.presentItem({
-        autoExpand: true,
-        message: 'Insufficient spend permission. Choose how to proceed:',
-        menuItems: [
+      logDialogShown({ dialogContext: 'sub_account_insufficient_balance' });
+      dialog.presentItem({
+        title: 'Insufficient spend permission',
+        message:
+          "Your spend permission's remaining balance cannot cover this transaction. Please choose how to proceed:",
+        onClose: () => {
+          logDialogDismissed({ dialogContext: 'sub_account_insufficient_balance' });
+          dialog.clear();
+        },
+        actionItems: [
           {
-            isRed: false,
-            info: 'Create new Spend Permission',
-            svgWidth: '10',
-            svgHeight: '11',
-            path: '',
-            defaultFillRule: 'evenodd',
-            defaultClipRule: 'evenodd',
+            text: 'Edit spend permission',
+            variant: 'primary',
             onClick: () => {
-              logSnackbarActionClicked({
-                snackbarContext: 'sub_account_insufficient_balance',
-                snackbarAction: 'create_permission',
+              logDialogActionClicked({
+                dialogContext: 'sub_account_insufficient_balance',
+                dialogAction: 'create_permission',
               });
-              snackbar.clear();
+              dialog.clear();
               resolve('update_permission');
             },
           },
           {
-            isRed: false,
-            info: 'Continue in Popup',
-            svgWidth: '10',
-            svgHeight: '11',
-            path: '',
-            defaultFillRule: 'evenodd',
-            defaultClipRule: 'evenodd',
+            text: 'Use primary account',
+            variant: 'secondary',
             onClick: () => {
-              logSnackbarActionClicked({
-                snackbarContext: 'sub_account_insufficient_balance',
-                snackbarAction: 'continue_in_popup',
+              logDialogActionClicked({
+                dialogContext: 'sub_account_insufficient_balance',
+                dialogAction: 'continue_in_popup',
               });
-              snackbar.clear();
+              dialog.clear();
               resolve('continue_popup');
-            },
-          },
-          {
-            isRed: true,
-            info: 'Cancel',
-            svgWidth: '10',
-            svgHeight: '11',
-            path: '',
-            defaultFillRule: 'evenodd',
-            defaultClipRule: 'evenodd',
-            onClick: () => {
-              logSnackbarActionClicked({
-                snackbarContext: 'sub_account_insufficient_balance',
-                snackbarAction: 'cancel',
-              });
-              snackbar.clear();
-              resolve('cancel');
             },
           },
         ],
