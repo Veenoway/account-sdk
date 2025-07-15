@@ -5,7 +5,7 @@ import type { Address, Hex } from 'viem';
  */
 export interface InfoRequest {
   /** The type of information being requested */
-  request: 'email' | 'physicalAddress' | 'phoneNumber' | 'name' | 'onchainAddress' | string;
+  type: 'email' | 'physicalAddress' | 'phoneNumber' | 'name' | 'onchainAddress' | string;
   /** Whether this information is optional */
   optional?: boolean;
 }
@@ -13,7 +13,7 @@ export interface InfoRequest {
 /**
  * Information responses collected from info requests
  */
-export interface InfoResponses {
+export interface PayerInfoResponses {
   /** User's email address */
   email?: string;
   /** User's physical address */
@@ -44,6 +44,16 @@ export interface InfoResponses {
 }
 
 /**
+ * Payer information configuration for payment data callbacks
+ */
+export interface PayerInfo {
+  /** Information requests from the payer */
+  requests: InfoRequest[];
+  /** Callback URL for sending the payer information */
+  callbackURL: string;
+}
+
+/**
  * Options for making a payment
  */
 export interface PaymentOptions {
@@ -53,8 +63,8 @@ export interface PaymentOptions {
   to: string;
   /** Whether to use testnet (Base Sepolia). Defaults to false (mainnet) */
   testnet?: boolean;
-  /** Optional information requests for data callbacks */
-  infoRequests?: InfoRequest[];
+  /** Optional payer information configuration for data callbacks */
+  payerInfo?: PayerInfo;
 }
 
 /**
@@ -69,7 +79,7 @@ export interface PaymentSuccess {
   /** The address that received the payment (resolved from ENS if applicable) */
   to: Address;
   /** Optional responses from information requests */
-  infoResponses?: InfoResponses;
+  payerInfoResponses?: PayerInfoResponses;
 }
 
 /**

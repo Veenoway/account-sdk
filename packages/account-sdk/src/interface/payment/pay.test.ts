@@ -48,7 +48,7 @@ describe('pay', () => {
       id: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
       amount: '10.50',
       to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
-      infoResponses: undefined,
+      payerInfoResponses: undefined,
     });
 
     expect(validation.validateStringAmount).toHaveBeenCalledWith('10.50', 2);
@@ -99,7 +99,7 @@ describe('pay', () => {
       id: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
       amount: '5.00',
       to: resolvedAddress,
-      infoResponses: undefined,
+      payerInfoResponses: undefined,
     });
 
     expect(validation.validateStringAmount).toHaveBeenCalledWith('5.00', 2);
@@ -235,13 +235,16 @@ describe('pay', () => {
     );
   });
 
-  it('should successfully process a payment with infoRequests', async () => {
-    const infoRequests = [
-      { request: 'email' },
-      { request: 'physicalAddress', optional: true },
-    ];
+  it('should successfully process a payment with payerInfo', async () => {
+    const payerInfo = {
+      requests: [
+        { type: 'email' },
+        { type: 'physicalAddress', optional: true },
+      ],
+      callbackURL: 'https://example.com/callback'
+    };
 
-    const infoResponses = {
+    const payerInfoResponses = {
       email: 'test@example.com',
       physicalAddress: {
         address1: '123 Main St',
@@ -272,19 +275,20 @@ describe('pay', () => {
             { type: 'email', optional: false },
             { type: 'physicalAddress', optional: true },
           ],
+                      callbackURL: 'https://example.com/callback',
         },
       },
     });
     vi.mocked(sdkManager.executePaymentWithSDK).mockResolvedValue({
       transactionHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-      infoResponses,
+      payerInfoResponses,
     });
 
     const payment = await pay({
       amount: '10.50',
       to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
       testnet: false,
-      infoRequests,
+      payerInfo,
     });
 
     expect(payment).toEqual({
@@ -292,7 +296,7 @@ describe('pay', () => {
       id: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
       amount: '10.50',
       to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
-      infoResponses: infoResponses,
+      payerInfoResponses: payerInfoResponses,
     });
 
     expect(validation.validateStringAmount).toHaveBeenCalledWith('10.50', 2);
@@ -303,7 +307,7 @@ describe('pay', () => {
       '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
       '10.50',
       false,
-      infoRequests
+      payerInfo
     );
   });
 });
