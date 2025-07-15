@@ -1,3 +1,4 @@
+import { logPaymentCompleted, logPaymentError, logPaymentStarted } from ':core/telemetry/events/payment.js';
 import type { Address } from 'viem';
 import type { PaymentOptions, PaymentResult } from './types.js';
 import { executePaymentWithSDK } from './utils/sdkManager.js';
@@ -31,6 +32,12 @@ import { validateAddress, validateStringAmount } from './utils/validation.js';
  */
 export async function pay(options: PaymentOptions): Promise<PaymentResult> {
   const { amount, to, testnet = false, payerInfo } = options;
+  
+  // Generate correlation ID for this payment request
+  const correlationId = crypto.randomUUID();
+  
+  // Log payment started
+  logPaymentStarted({ amount, testnet, correlationId });
 
   try {
     validateStringAmount(amount, 2);
@@ -41,6 +48,9 @@ export async function pay(options: PaymentOptions): Promise<PaymentResult> {
 
     // Step 3: Execute payment with SDK
     const executionResult = await executePaymentWithSDK(requestParams, testnet);
+
+    // Log payment completed
+    logPaymentCompleted({ amount, testnet, correlationId });
 
     // Return success result
     return {
@@ -69,6 +79,9 @@ export async function pay(options: PaymentOptions): Promise<PaymentResult> {
         errorMessage = err.reason;
       }
     }
+
+    // Log payment error
+    logPaymentError({ amount, testnet, correlationId, errorMessage });
 
     // Return error result
     return {

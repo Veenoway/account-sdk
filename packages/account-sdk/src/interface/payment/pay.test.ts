@@ -9,9 +9,20 @@ vi.mock('./utils/validation.js');
 vi.mock('./utils/translatePayment.js');
 vi.mock('./utils/sdkManager.js');
 
+// Mock telemetry events
+vi.mock(':core/telemetry/events/payment.js', () => ({
+  logPaymentStarted: vi.fn(),
+  logPaymentError: vi.fn(),
+  logPaymentCompleted: vi.fn(),
+}));
+
 describe('pay', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Mock crypto.randomUUID
+    vi.stubGlobal('crypto', {
+      randomUUID: vi.fn().mockReturnValue('mock-correlation-id'),
+    });
   });
 
   it('should successfully process a payment', async () => {
@@ -58,6 +69,19 @@ describe('pay', () => {
       false,
       undefined
     );
+
+    // Verify telemetry events
+    const { logPaymentStarted, logPaymentCompleted } = await import(':core/telemetry/events/payment.js');
+    expect(logPaymentStarted).toHaveBeenCalledWith({
+      amount: '10.50',
+      testnet: false,
+      correlationId: 'mock-correlation-id',
+    });
+    expect(logPaymentCompleted).toHaveBeenCalledWith({
+      amount: '10.50',
+      testnet: false,
+      correlationId: 'mock-correlation-id',
+    });
   });
 
   it('should handle validation errors', async () => {
@@ -75,6 +99,20 @@ describe('pay', () => {
       error: 'Invalid amount: must be greater than 0',
       amount: '0',
       to: '0xFe21034794A5a574B94fE4fDfD16e005F1C96e51',
+    });
+
+    // Verify telemetry events
+    const { logPaymentStarted, logPaymentError } = await import(':core/telemetry/events/payment.js');
+    expect(logPaymentStarted).toHaveBeenCalledWith({
+      amount: '0',
+      testnet: false,
+      correlationId: 'mock-correlation-id',
+    });
+    expect(logPaymentError).toHaveBeenCalledWith({
+      amount: '0',
+      testnet: false,
+      correlationId: 'mock-correlation-id',
+      errorMessage: 'Invalid amount: must be greater than 0',
     });
   });
 
