@@ -2,10 +2,10 @@
 
 [![npm](https://img.shields.io/npm/v/@base-org/account.svg)](https://www.npmjs.com/package/@base-org/account)
 
-## Base Account SDK allows dapps to connect to Base Account
+## Base Account SDK allows apps to connect to Base Account
 
-1. [Base Account](https://account.base.org/)
-   - [Docs](https://www.base.org/builders/smart-wallet)
+1. [Base Account](https://account.base.app)
+   - [Docs](https://docs.base.org/base-account/quickstart/web)
 
 ### Installing Base Account SDK
 
@@ -118,9 +118,9 @@
    });
    ```
 
-### Developing locally and running the test dapp
+### Developing locally and running the test app
 
-- The Base Account SDK test dapp can be viewed here https://base.github.io/account-sdk/.
+- The Base Account SDK test app can be viewed here https://base.github.io/account-sdk/.
 - To run it locally follow these steps:
 
   1. Fork this repo and clone it
