@@ -1,3 +1,4 @@
+import { SpendPermission } from ':core/rpc/coinbase_fetchSpendPermissions.js';
 import { spendPermissionManagerAddress } from ':sign/base-account/utils/constants.js';
 import { Address, Hex, getAddress } from 'viem';
 import { RequestSpendPermissionType } from './methods/requestSpendPermission.js';
@@ -88,8 +89,8 @@ export function createSpendPermissionTypedData(
       token: getAddress(token),
       allowance: allowance.toString(),
       period: 86400 * periodInDays,
-      start: toTimestampInSeconds(start ?? new Date()),
-      end: end ? toTimestampInSeconds(end) : ETERNITY_TIMESTAMP,
+      start: dateToTimestampInSeconds(start ?? new Date()),
+      end: end ? dateToTimestampInSeconds(end) : ETERNITY_TIMESTAMP,
       salt: salt ?? getRandomHexString(32),
       extraData: extraData ? (extraData as Hex) : '0x',
     },
@@ -113,6 +114,64 @@ function getRandomHexString(byteLength: number): `0x${string}` {
  * @param date - The Date object to convert.
  * @returns The Unix timestamp in seconds.
  */
-export function toTimestampInSeconds(date: Date): number {
+export function dateToTimestampInSeconds(date: Date): number {
   return Math.floor(date.getTime() / 1000);
+}
+
+/**
+
+ * Converts a Unix timestamp in seconds to a Date object.
+ *
+ * @param timestamp - The Unix timestamp in seconds.
+ * @returns A Date object.
+ */
+export function timestampInSecondsToDate(timestamp: number): Date {
+  return new Date(timestamp * 1000);
+}
+
+/**
+ * Converts a SpendPermission object to the arguments expected by the SpendPermissionManager contract.
+ *
+ * This function creates the standard args in the correct order.
+ *
+ * @param permission - The SpendPermission object to convert.
+ * @returns The arguments expected by the SpendPermissionManager contract.
+ *
+ * @example
+ * ```typescript
+ * import { toSpendPermissionArgs } from '@base-org/account/spend-permission';
+ *
+ * const args = toSpendPermissionArgs(permission);
+ * const currentPeriod = await readContract(client, {
+ *   address: spendPermissionManagerAddress,
+ *   abi: spendPermissionManagerAbi,
+ *   functionName: 'getCurrentPeriod',
+ *   args: [args]
+ * });
+ * ```
+ */
+export function toSpendPermissionArgs(permission: SpendPermission) {
+  const {
+    account,
+    spender,
+    token,
+    allowance: allowanceStr,
+    period,
+    start,
+    end,
+    salt,
+    extraData,
+  } = permission.permission;
+
+  return {
+    account: getAddress(account),
+    spender: getAddress(spender),
+    token: getAddress(token),
+    allowance: BigInt(allowanceStr),
+    period,
+    start,
+    end,
+    salt: BigInt(salt),
+    extraData: extraData as Hex,
+  };
 }
